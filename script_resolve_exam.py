@@ -265,10 +265,18 @@ def solve_exam_question(page, question_container):
     try:
         question_element = question_container.locator('p.text-neutral-80.leading-tight.mb-8').first
         
-        if not question_element.is_visible(timeout=2000):
-            return False
+        try:
+            if not question_element.is_visible(timeout=2000):
+                raise Exception("Primary question element not visible")
+        except:
+            print("      🔄 Using fallback selector for question element")
+            question_element = question_container.locator('span.block.w-full.overflow-y-auto.font-semibold.text-primary-900 p').first
+            if not question_element.is_visible(timeout=2000):
+                print("      ❌ Fallback question element also not visible")
+                return False
         
         question_text = question_element.inner_text().strip().replace('\n', ' ')
+        print(f"      📖 Question text: '{question_text[:80]}...'")
         
         answer = None
         for question_key, answer_value in EXAM_QA_MAP.items():
@@ -280,23 +288,54 @@ def solve_exam_question(page, question_container):
             print(f"⚠️  No answer found for: {question_text[:60]}...")
             return False
         
+        print(f"      🎯 Looking for answer: '{answer}'")
+        
         answer_labels = question_container.locator('label[data-testid^="exam-answer-"]')
         
-        for i in range(answer_labels.count()):
-            label = answer_labels.nth(i)
-            answer_text_element = label.locator('span.flex span').last
-            current_label_text = answer_text_element.inner_text().strip()
-            
-            if answer == current_label_text or answer in current_label_text:
-                print(f"   ✓ Selected: {answer}")
-                human_delay(0.5, 1.2)
-                label.click() 
-                human_delay(0.3, 0.8)
-                return True
+        print(f"      📊 Primary selector found {answer_labels.count()} answer labels")
         
+        using_fallback = False
+        if answer_labels.count() == 0:
+            print("      🔄 Using fallback selector for answer labels")
+            answer_labels = question_container.locator('label.group.flex.w-fit.cursor-pointer.select-none.items-center.rounded-4.text-typeface-900.flex-row.gap-4.text-base')
+            print(f"      📊 Fallback found {answer_labels.count()} answer labels")
+            using_fallback = True
+        
+        for i in range(answer_labels.count()):
+            try:
+                label = answer_labels.nth(i)
+                
+                current_label_text = ""
+                if using_fallback:
+                    spans = label.locator('> span')
+                    print(f"      🔍 Label {i+1} has {spans.count()} direct span children")
+                    if spans.count() >= 2:
+                        current_label_text = spans.nth(1).inner_text().strip()
+                    else:
+                        current_label_text = label.inner_text().strip()
+                else:
+                    answer_text_element = label.locator('span.flex span').last
+                    current_label_text = answer_text_element.inner_text().strip()
+                
+                print(f"      📝 Label {i+1} text: '{current_label_text}'")
+                
+                if answer == current_label_text or answer in current_label_text:
+                    print(f"   ✓ Selected: {answer}")
+                    human_delay(0.5, 1.2)
+                    label.click() 
+                    human_delay(0.3, 0.8)
+                    return True
+            except Exception as e:
+                print(f"      ❌ Error processing label {i+1}: {e}")
+                continue
+        
+        print(f"      ⚠️  Could not find matching answer '{answer}' in labels")
         return False
         
-    except Exception:
+    except Exception as e:
+        print(f"      ❌ Exception in solve_exam_question: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -326,8 +365,12 @@ def do_activity_exam(page):
             human_delay(2, 3)
         
         question_selector = 'div[data-testid^="question-"]'
+        question_fallback_selector = '#question-wrapper'
         validate_button_selector = 'button:has-text("Valider")'
+        validate_button_selector_2 = 'button:has-text("Passer")'
+        validate_button_fallback_selector = 'button:has-text("Suivant")'
         finish_button_selector = 'button:has-text("Terminer")'
+        finish_button_fallback_selector = 'button:has-text("Suivant")'
         
         total_questions_processed = 0
         page_number = 1
@@ -336,6 +379,13 @@ def do_activity_exam(page):
         while not activity_finished:
             questions = page.locator(question_selector)
             total_on_page = questions.count()
+            
+            if total_on_page == 0:
+                print(f"   🔄 Primary question selector found 0 questions, trying fallback...")
+                questions = page.locator(question_fallback_selector)
+                total_on_page = questions.count()
+                print(f"   📊 Fallback selector found {total_on_page} questions")
+            
             print(f"\n📄 Page {page_number} - Processing {total_on_page} questions...")
 
             for i in range(total_on_page):
@@ -348,21 +398,51 @@ def do_activity_exam(page):
 
             human_delay(1, 2)
             
-            if page.locator(finish_button_selector).is_visible(timeout=3000):
+            print("\n🔍 Checking for finish button...")
+            finish_button_visible = page.locator(finish_button_selector).is_visible(timeout=3000)
+            print(f"   Primary finish button ('Terminer'): {finish_button_visible}")
+            if not finish_button_visible:
+                finish_button_visible = page.locator(finish_button_fallback_selector).is_visible(timeout=1000)
+                print(f"   Fallback finish button ('Suivant'): {finish_button_visible}")
+                if finish_button_visible:
+                    print("   🔄 Using fallback finish button selector")
+                    finish_button_selector = finish_button_fallback_selector
+            
+            if finish_button_visible:
                 print("\n✅ Activity complete! Clicking 'Terminer'...")
                 real_click(page, finish_button_selector)
                 # wait for page to reload
                 page.wait_for_load_state("domcontentloaded")
                 human_delay(5, 5)
-                activity_finished = True
-            elif page.locator(validate_button_selector).is_visible(timeout=3000):
-                print("✅ Clicking 'Valider' - Moving to next page...")
-                real_click(page, validate_button_selector)
-                human_delay(2, 4)
-                page_number += 1
+                if page_number != 6:
+                    page_number += 1
+                else:
+                    activity_finished = True
             else:
-                print("⚠️  No validation button found")
-                break
+                print("\n🔍 Checking for validate button...")
+                validate_button_visible = page.locator(validate_button_selector).is_visible(timeout=3000)
+                print(f"   Primary validate button ('Valider'): {validate_button_visible}")
+                if not validate_button_visible:
+                    validate_button_visible = page.locator(validate_button_fallback_selector).is_visible(timeout=1000)
+                    print(f"   Fallback validate button ('Suivant'): {validate_button_visible}")
+                    if validate_button_visible:
+                        print("   🔄 Using fallback validate button selector")
+                        validate_button_selector = validate_button_fallback_selector
+                    else:
+                        validate_button_visible = page.locator(validate_button_selector_2).is_visible(timeout=1000)
+                        print(f"   Fallback validate button ('Passer'): {validate_button_visible}")
+                        if validate_button_visible:
+                            print("   🔄 Using fallback validate button selector")
+                            validate_button_selector = validate_button_selector_2
+                
+                if validate_button_visible:
+                    print("✅ Clicking 'Valider' - Moving to next page...")
+                    real_click(page, validate_button_selector)
+                    human_delay(2, 4)
+                    page_number += 1
+                else:
+                    print("⚠️  No validation button found (neither primary nor fallback)")
+                    break
         
         print(f"\n🎉 Activity finished! Total questions: {total_questions_processed} across {page_number} page(s)\n")
         return True
