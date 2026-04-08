@@ -263,8 +263,8 @@ EXAM_QA_MAP = {
 
 def solve_exam_question(page, question_container):
     try:
-        question_element = question_container.locator('p.text-neutral-80.leading-tight.mb-8').first
-        
+        question_element = question_container.locator('#question-header h2 p').first
+
         try:
             if not question_element.is_visible(timeout=2000):
                 raise Exception("Primary question element not visible")
