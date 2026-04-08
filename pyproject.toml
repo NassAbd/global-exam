@@ -1,0 +1,12 @@
+[project]
+name = "global-exam"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "greenlet>=3.2.5",
+    "playwright>=1.58.0",
+    "pyee>=13.0.1",
+    "python-dotenv>=1.2.1",
+    "rich>=14.3.3",
+    "typing-extensions>=4.15.0",
+]
