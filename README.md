@@ -13,6 +13,7 @@ This script automates login and TOEIC exam training exercises on **Global Exam**
 - 🏫 **Organization Selection** - Selects the IPSSI organization if prompted
 - 📝 **Exam Training** - Automatically solves "Entraînement 201" questions using a built-in Q&A mapping
 - 🔄 **Continuous Loop** - Repeats the activity indefinitely
+- 🎨 **Modern UI** - Uses `rich` for beautiful terminal logging and status updates
 
 ## Anti-Detection Measures
 
@@ -25,11 +26,11 @@ The script includes several stealth techniques to avoid bot detection:
 
 ## Requirements
 
-1. **Python 3.9+** installed
-2. Install dependencies from `requirements.txt`:
+1. **Python 3.9+** and **uv** installed
+2. Initialize the environment and install dependencies:
    ```bash
-   pip install -r requirements.txt
-   playwright install
+   uv sync
+   uv run playwright install
    ```
 3. Create a `.env` file with your credentials:
    ```env
@@ -39,9 +40,9 @@ The script includes several stealth techniques to avoid bot detection:
 
 ## Running the Script
 
-Execute:
+Execute with `uv`:
 ```bash
-python script_resolve_exam.py
+uv run script_resolve_exam.py
 ```
 
 ## Workflow
@@ -60,6 +61,12 @@ The script will:
 ## Q&A Mapping
 
 The script uses a predefined mapping (`EXAM_QA_MAP`) to match question snippets to correct answers. Questions are matched by checking if a key phrase appears in the question text.
+
+## Development
+
+The project follows high engineering standards:
+- **Linting**: Run `uvx ruff check script_resolve_exam.py`
+- **Type Checking**: Run `uvx ty check script_resolve_exam.py`
 
 ## Notes
 
